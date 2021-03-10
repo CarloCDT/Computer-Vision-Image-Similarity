@@ -2,4 +2,6 @@
 __pycache__
 config.py
 models/yolov3.weights
+models/__pycache__
 images/aws
+Clip.ipynb

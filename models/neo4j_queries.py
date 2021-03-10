@@ -65,8 +65,23 @@ def jaccard_similarity_query(image1_name, image2_name):
     
     return query
 
+# Overlap Similarity
+def overlap_similarity_query(image1_name, image2_name):
+    
+    query = """
+             MATCH (p1:Image {name: '""" + image1_name + """'})-[:Contains]->(objects1)
+             WITH p1, collect(id(objects1)) AS p1Objects
+             MATCH (p2:Image {name: '""" + image2_name + """'})-[:Contains]->(objects2)
+             WITH p1, p1Objects, p2, collect(id(objects2)) AS p2Objects
+             RETURN p1.name AS from,
+             p2.name AS to,
+             gds.alpha.similarity.overlap(p1Objects, p2Objects) AS similarity
+           """
+    
+    return query
+
 # Similar Images
-def find_similar_images_neo4j(file_path, ACCESS_ID, ACCESS_KEY, new_labels, name="test_image", top_k=3):
+def find_similar_images_neo4j(file_path, ACCESS_ID, ACCESS_KEY, new_labels, metric="jaccard", name="test_image", top_k=3):
     
     # Session
     driver, session = get_driver()
@@ -96,7 +111,13 @@ def find_similar_images_neo4j(file_path, ACCESS_ID, ACCESS_KEY, new_labels, name
         
     for image2_name in all_images:
         if name != image2_name:
-            query = jaccard_similarity_query(name, image2_name)
+            if metric == "jaccard":
+                query = jaccard_similarity_query(name, image2_name)
+            elif metric == "overlap":
+                query = overlap_similarity_query(name, image2_name)
+            else:
+                print("Metric not found")
+                
             dtf_data = pd.DataFrame([dict(_) for _ in session.run(query)])
             df = pd.concat([df,dtf_data])
     
@@ -112,7 +133,7 @@ def find_similar_images_neo4j(file_path, ACCESS_ID, ACCESS_KEY, new_labels, name
 
     for row in similar_images_df.iterrows():
 
-        print("Jaccard Score: {:.2f}".format(row[1]["similarity"]))
+        print(metric.title() + " Score: {:.2f}".format(row[1]["similarity"]))
 
         name = row[1]["to"]
         query = "MATCH (n:Image {name:'" + name + "'}) RETURN n.url"
