@@ -1,29 +1,23 @@
+# Libraries
 import cv2
 import numpy as np
 import tensorflow as tf
 import boto3
 from PIL import Image
-
 from absl import logging
 from itertools import repeat
-
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Add, Concatenate, Lambda
-from tensorflow.keras.layers import Conv2D, Input, LeakyReLU
-from tensorflow.keras.layers import MaxPool2D, UpSampling2D, ZeroPadding2D
+from tensorflow.keras.layers import Add, Concatenate, Lambda, Conv2D, Input, LeakyReLU, MaxPool2D, UpSampling2D, ZeroPadding2D
 from tensorflow.keras.regularizers import l2
-from tensorflow.keras.losses import binary_crossentropy
-from tensorflow.keras.losses import sparse_categorical_crossentropy
+from tensorflow.keras.losses import binary_crossentropy, sparse_categorical_crossentropy
 from IPython.display import Image as Image_display
 
 # Parameters
 yolo_iou_threshold   = 0.6 # iou threshold
 yolo_score_threshold = 0.6 # score threshold
-weightsyolov3 = 'yolov3.weights' # path to weights file
-weights= 'checkpoints/yolov3.tf' # path to checkpoints file
-size= 416             #resize images to\
-checkpoints = 'checkpoints/yolov3.tf'
-num_classes = 80      # number of classes in the model
+weightsyolov3 = 'models/yolov3.weights' # path to weights files
+size= 416 # Image resize
+num_classes = 80 # Number of classes
 
 YOLO_V3_LAYERS = [
     'yolo_darknet',
@@ -67,8 +61,6 @@ def predict_classes(image_name, yolo_model, ACCESS_ID, ACCESS_KEY, print_image =
         img = np.array(read_image(image_name, ACCESS_ID, ACCESS_KEY))
         img = draw_outputs(img, (boxes, scores, classes, nums), class_names)
 
-        #cv2.imwrite('output.jpg', img)
-        #display(Image_display('output.jpg'))
         display(Image.fromarray(img, 'RGB'))
     
     return labels

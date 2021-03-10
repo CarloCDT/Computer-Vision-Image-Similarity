@@ -74,8 +74,8 @@ class Inception_V3:
         
         # Read JSON
         image_tensors_name = 'image_tensors.pkl'
-        if image_tensors_name in os.listdir():
-            with open(image_tensors_name, 'rb') as fp:
+        if image_tensors_name in os.listdir("labels"):
+            with open(os.path.join("labels", image_tensors_name), 'rb') as fp:
                 image_tensor = pickle.load(fp)
         else:
             image_tensor = {}
@@ -104,7 +104,7 @@ class Inception_V3:
         #print(df)
         
         # Save Image Tensor
-        with open(image_tensors_name, 'wb') as fp:
+        with open(os.path.join("labels", image_tensors_name), 'wb') as fp:
             pickle.dump(image_tensor, fp, protocol=pickle.HIGHEST_PROTOCOL)
         
         similar_images_df = df.sort_values(by="dissimilarity").reset_index(drop=True).head(top_k)
@@ -120,8 +120,9 @@ class Inception_V3:
 
             print("Dissimilarity Score: {:.2f}".format(row[1]["dissimilarity"]))
 
-            url = os.path.join("images", row[1]["to"])
-            display(Image_display(url))
+            #url = os.path.join("images", row[1]["to"])
+            #display(Image_display(url))
+            display(self.read_image(row[1]["to"], self.ACCESS_ID, self.ACCESS_KEY))
        
     @staticmethod
     def read_image(image_name, ACCESS_ID, ACCESS_KEY, bucket='carlo-computer-vision-project'):
