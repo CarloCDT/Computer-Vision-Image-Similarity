@@ -4,6 +4,9 @@ import json
 import cv2
 from numba import cuda
 from PIL import Image
+from boto.s3.connection import S3Connection
+import boto3
+import numpy as np
 
 class OpenAI_clip:
     """
@@ -11,16 +14,15 @@ class OpenAI_clip:
     """
     
     # Initializatoin
-    def __init__(self):
+    def __init__(self, ACCESS_ID, ACCESS_KEY):
         # Load the model
         # pip install git+https://github.com/openai/CLIP.git
         try:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
             self.model, self.preprocess = clip.load('ViT-B/32', self.device)
         except:
-            cuda.get_current_device().reset()
-            print("Current Device reset")
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            #cuda.get_current_device().reset()
+            print("Error!")
             self.model, self.preprocess = clip.load('ViT-B/32', self.device)
             
         # Load Imafenet 1000 labels
@@ -28,6 +30,9 @@ class OpenAI_clip:
             imagenet_1000_labels = json.load(fp)
             self.imagenet_labels = list(imagenet_1000_labels.values())
             self.imagenet_labels = [a.split(",")[0] for a in self.imagenet_labels]
+            
+        self.ACCESS_ID = ACCESS_ID
+        self.ACCESS_KEY = ACCESS_KEY
 
     # Predict Classes
     def predict_classes(self, image_path, labels=None, top=15, print_results = True):
@@ -53,7 +58,9 @@ class OpenAI_clip:
             labels = self.imagenet_labels
         
         # Transform image to PIL
-        img = cv2.imread(image_path)
+        #img = cv2.imread(image_path)
+        img = self.read_image(image_name=image_path, ACCESS_ID=self.ACCESS_ID, ACCESS_KEY=self.ACCESS_KEY, bucket='carlo-computer-vision-project')
+        img = np.array(img)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         im_pil = Image.fromarray(img)
         im_pil
@@ -85,3 +92,20 @@ class OpenAI_clip:
                                               labels[index].title(), 
                                               value.item()))
         return prediction_set
+    
+    @staticmethod
+    def read_image(image_name, ACCESS_ID, ACCESS_KEY, bucket='carlo-computer-vision-project'):
+        s3 = boto3.resource('s3', aws_access_key_id=ACCESS_ID, aws_secret_access_key= ACCESS_KEY)
+        bucket = s3.Bucket(bucket)
+        object = bucket.Object(image_name)
+        response = object.get()
+        file_stream = response['Body']
+        img = Image.open(file_stream)
+        return img
+    
+    @staticmethod
+    def get_file_names(ACCESS_ID, ACCESS_KEY, bucket):
+        conn = S3Connection(ACCESS_ID, ACCESS_KEY)
+        bucket = conn.get_bucket(bucket, validate=False)
+        all_files = [k.name for k in bucket.list()]
+        return all_files
