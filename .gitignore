@@ -1,5 +1,6 @@
 .idea
 .ipynb_checkpoints
+simple_images
 __pycache__
 config.py
 models/yolov3.weights
