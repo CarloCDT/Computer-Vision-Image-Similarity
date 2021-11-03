@@ -42,7 +42,12 @@ class Inception_V3:
         input_inception = self.preprocess_image(image_path = file_name)
 
         # Make model predictions
-        predictions = self.model.predict(input_inception)
+        try:
+            predictions = self.model.predict(input_inception)
+        except:
+            print("Error making model predictions in file {}".format(file_name))
+            return set()
+        
         prediction_set = set()
 
         # Print predictions
@@ -84,15 +89,22 @@ class Inception_V3:
         for image2_name in tqdm(all_images):
                 if image1_name != image2_name:
                     
+                    status = True
+                    
                     if image2_name in image_tensor:
                         output_tensor = image_tensor[image2_name]
                     
                     else:
                         input_image2 = self.preprocess_image(image_path = image2_name)
-                        output_tensor = self.model.predict(input_image2)[0]
-                        image_tensor[image2_name] = output_tensor
-                                              
-                    if metric == "cosine":
+                        try:
+                            output_tensor = self.model.predict(input_image2)[0]
+                            image_tensor[image2_name] = output_tensor
+                        except:
+                            status = False
+                    
+                    if not status:
+                        distance = float('inf')
+                    elif metric == "cosine":
                         distance = cosine(root_tensor, output_tensor)
                     else:
                         distance = float(tf.norm(root_tensor-output_tensor, ord=metric))
@@ -115,14 +127,82 @@ class Inception_V3:
         display(Image_display(url))
 
         print("Similar Images")
+        
+        return_images = []
 
         for row in similar_images_df.iterrows():
-
             print("Dissimilarity Score: {:.2f}".format(row[1]["dissimilarity"]))
-
             #url = os.path.join("images", row[1]["to"])
             #display(Image_display(url))
-            display(self.read_image(row[1]["to"], self.ACCESS_ID, self.ACCESS_KEY))
+            img = self.read_image(row[1]["to"], self.ACCESS_ID, self.ACCESS_KEY)
+            display(img)
+            return_images.append(img)
+ 
+        return return_images
+
+    def find_similar_images_dl_img(self, image1_file, metric='euclidean',top_k=3):
+    
+        # Initialize DataFrame
+        df = pd.DataFrame(columns=["from", "to", "dissimilarity"])
+
+        # Process Image
+        img = image1_file
+        reshape_image = tf.image.resize(np.array(img), size=(299,299), method='bilinear')
+        input_inception = tf.keras.applications.inception_v3.preprocess_input(np.array([reshape_image]))
+        root_tensor = self.model.predict(input_inception)[0]
+
+        # Get all Images
+        all_images = self.get_file_names(self.ACCESS_ID, self.ACCESS_KEY)
+        
+        # Read JSON
+        image_tensors_name = 'image_tensors.pkl'
+        if image_tensors_name in os.listdir("labels"):
+            with open(os.path.join("labels", image_tensors_name), 'rb') as fp:
+                image_tensor = pickle.load(fp)
+        else:
+            image_tensor = {}
+        
+        # Loop all the images
+        for image2_name in tqdm(all_images):
+              
+            status = True
+
+            if image2_name in image_tensor:
+                output_tensor = image_tensor[image2_name]
+
+            else:
+                input_image2 = self.preprocess_image(image_path = image2_name)
+                try:
+                    output_tensor = self.model.predict(input_image2)[0]
+                    image_tensor[image2_name] = output_tensor
+                except:
+                    status = False
+
+            if not status:
+                distance = float('inf')
+            elif metric == "cosine":
+                distance = cosine(root_tensor, output_tensor)
+            else:
+                distance = float(tf.norm(root_tensor-output_tensor, ord=metric))
+
+            # Create Table
+            dtf_data = pd.DataFrame(data=[["new_image", image2_name, distance]], columns=["from", "to", "dissimilarity"])
+            df = pd.concat([df, dtf_data])
+                    
+
+        # Save Image Tensor
+        with open(os.path.join("labels", image_tensors_name), 'wb') as fp:
+            pickle.dump(image_tensor, fp, protocol=pickle.HIGHEST_PROTOCOL)
+        
+        similar_images_df = df.sort_values(by="dissimilarity").reset_index(drop=True).head(top_k)  
+        
+        return_images = []
+
+        for row in similar_images_df.iterrows():
+            img = row[1]["to"]
+            return_images.append(img)
+ 
+        return return_images
        
     @staticmethod
     def read_image(image_name, ACCESS_ID, ACCESS_KEY, bucket='carlo-computer-vision-project'):

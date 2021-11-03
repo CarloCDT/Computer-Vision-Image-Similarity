@@ -51,7 +51,11 @@ def predict_classes(image_name, yolo_model, ACCESS_ID, ACCESS_KEY, print_image =
     img = tf.expand_dims(img, 0)
     img = preprocess_image(img, size)
     
-    boxes, scores, classes, nums = yolo_model(img) #eager mode
+    try:
+        boxes, scores, classes, nums = yolo_model(img) #eager mode
+    except:
+        print("Error making model predictions in file {}".format(image_name))
+        return set()
     
     labels = set()
     for i in range(np.array((scores!=0)[0]).sum()):
